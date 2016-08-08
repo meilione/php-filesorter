@@ -1,0 +1,15 @@
+
+{
+    "folders":
+    [
+        {
+            "follow_symlinks": true,
+            "path": "/home/yvesmeili/Sites/zivi/razuna-api"
+        }
+    ],
+    "settings": {
+        "xdebug": {
+             "url": "http://razunaapi.localdev/sandbox/filesorter/",
+        }
+    }
+}
