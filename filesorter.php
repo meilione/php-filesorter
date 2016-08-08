@@ -36,6 +36,7 @@ class SortFiles {
 
 
 	public function start() {
+		$this->known_tags->findOrangUtanNames($this->file_list_path);
 		$this->read_file_list();
 		$this->process_file_list();
 	}
@@ -53,8 +54,13 @@ class SortFiles {
 
 		$this->file_list = file($this->file_list_path, FILE_SKIP_EMPTY_LINES);
 
-		if ($this->debug) {
-			$this->file_list = array_slice($this->file_list, $this->settings['debug']['limitListAt'], $this->settings['debug']['limitListTo']);
+		if ($this->debug) { 
+			if (isset($this->settings['debug']['limitListRandom']) && !empty($this->settings['debug']['limitListRandom'])) {
+				shuffle($this->file_list);
+				$this->file_list = array_slice($this->file_list, 0, $this->settings['debug']['limitListRandom']);
+			} else {
+				$this->file_list = array_slice($this->file_list, $this->settings['debug']['limitListAt'], $this->settings['debug']['limitListTo']);
+			}
 		}
 	}
 
@@ -82,19 +88,35 @@ class SortFiles {
 
 				$match = $this->known_tags->searchObject($file_path_part, true);
 
-				echo "Match type: ". $match[0] . "\n";
+				//echo "Match type: ". $match[0] . "\n";
 
 				switch ($match[0]) {
 					case 'nomatch':
-
+						$keywords[] = array(
+									'part'    => $file_path_parts[$i],
+									'keyword' => '',
+									'multiple'=> array(),
+									'type'    => '',
+									'score'   => 0,
+									'status'  => $match[0]
+									);
 						break;
-					case 'multiple':
+
+					case 'multiple-all':
+					case 'multiple-parts':
+						//calculate score
+						if ($match[0] == 'multiple-all') {
+							$score = 100;
+						} else {
+							$score = 0;
+						}
+
 						$keywords[] = array(
 									'part'     => $file_path_part,
 									'keyword'  => '',
 									'multiple' => $match[1],
 									'type'     => '',
-									'score'    => 0,
+									'score'    => $score,
 									'status'   => $match[0]
 									);
 						break;
@@ -142,16 +164,6 @@ class SortFiles {
 	}
 
 
-	private function getMainTopic($tags) {
-
-	}
-
-
-	private function getSubTopics($tags) {
-
-	}
-
-
 }
 
 
@@ -161,8 +173,9 @@ $options = array(
 				"ignorePath"    => "S:\\shared_files_internal_network_(save_here)\\_Internal_Files\\Multimedia\\Digital Asset Management\\Imported unsorted\\"
 			),
 		"debug" => array(
-				"limitListAt" => 7918,
-				"limitListTo" => 1
+				"limitListAt" => 2000,
+				"limitListTo" => 1,
+				"limitListRandom" => 0,
 			)
 	);
 

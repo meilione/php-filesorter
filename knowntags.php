@@ -45,6 +45,7 @@ class KnownTags {
 	public function searchObject($text, $single = false) {
 
 		//TODO implement caching
+		//echo "Searching for $text \n";
 
 		/*
 		* Match mechanism
@@ -53,6 +54,10 @@ class KnownTags {
 
 		//exact
 		$result = $this->getObject($text, '', false, true, true, false); //TODO maybe try stemmed as true
+		
+		//echo "exact style results\n";
+		//print_r($result);
+		
 		if (!empty($result) && count($result) == 1) {
 			$result[0]['score'] = 100;
 			$match_type = 'exact';
@@ -62,6 +67,10 @@ class KnownTags {
 		//TODO consider not searching for "like" style matches as this can be very inaccurate
 		if (empty($result)) {
 			$result = $this->getObject($text, '', false, true, false, false);
+			
+			//echo "like style results\n";
+			//print_r($result);
+			
 			if (!empty($result) && count($result) == 1) {
 				//calculate similarity
 				foreach ($result as $key => $row) {
@@ -84,8 +93,8 @@ class KnownTags {
 			if (strpos($text, ' ') !== false) {
 				$string_parts = explode(' ', $text);
 
-				echo 'String parts'."\n";
-				print_r($string_parts);
+				//echo 'String parts'."\n";
+				//print_r($string_parts);
 
 				foreach ($string_parts as $part) {
 					if (strlen($part) < $this->min_string_part_length) {
@@ -110,10 +119,17 @@ class KnownTags {
 					}
 
 				}
+
+				//all parts matched
+				if (count($string_parts) === count($matches)) {
+					$match_type = 'multiple-all';
+				} else if (!empty($matches)) {
+					$match_type = 'multiple-parts';
+				}
+
 			}
 
 			if (!empty($matches)) {
-				$match_type = 'multiple';
 				$result = $matches;
 			}
 			
@@ -123,12 +139,12 @@ class KnownTags {
 		* Clean up
 		*/
 		
-		echo 'Results before clean up'."\n";
-		print_r($result);
+		//echo 'Results before clean up'."\n";
+		//print_r($result);
 
 		if ($match_type == 'exact') {
 			$result = $result[0];
-		} else if ($match_type == 'multiple') {
+		} else if (in_array($match_type, array('multiple-all','multiple-parts'))) {
 			foreach ($result as $rowid => $match) {
 				$result[$rowid]['type'] = $this->object_types[$match['type']];
 			}
@@ -153,12 +169,14 @@ class KnownTags {
 		}
 
 		if ($exact) {
-			$where = "object = '". $search ."'";
+			$where = "object = '". $search ."' COLLATE NOCASE";
 		} else {
-			$where = "object LIKE '%" . $search . "%'";
+			$where = "object LIKE '%" . $search . "%' COLLATE NOCASE";
 		}
 
 		$query = "SELECT * FROM objects WHERE ". $where . $type . $onlyMain;
+
+		//echo $query;
 
 		$result = $this->db->query($query);
 
@@ -181,7 +199,8 @@ class KnownTags {
 			if ($row['parent'] !== 0) {
 				$parent = $this->getParentObject($row['parent']);
 				if (!empty($parent)) {
-					$rows[$key] = array_merge( $parent[0], array('score'=>$row['score']));
+					$score = isset($row['score']) ? $row['score'] : 0;
+					$rows[$key] = array_merge( $parent[0], array('score'=>$score));
 				}
 			}
 		}
@@ -209,6 +228,35 @@ class KnownTags {
 
 		if ($text > 1900 && $text < 2100) {
 			return true;
+		}
+	}
+
+
+	public function findOrangUtanNames($file_list_path) {
+		$file_path_string = file_get_contents($file_list_path);
+		preg_match_all('/ou ([0-9]{0,3}) (.*?)[\\\s]/mi', $file_path_string, $matches);
+		$matches = array_unique($matches[2]);
+		array_walk($matches, array($this, 'cleanUpOrangutanNames'));
+		$matches = array_unique($matches);
+		print_r($matches);
+
+		//Insert Into DB
+		$values = implode("',0,5),('",$matches);
+		$values = substr($values, 7);
+		$sql = "INSERT INTO objects (object, parent, type) VALUES $values',0,5)";
+		echo $sql;
+		$this->db->exec($sql);
+
+	}
+
+	private function cleanUpOrangutanNames(&$item, $key) {
+		$item = str_ireplace($this->stop_words, '', $item);
+		$item = str_replace(array('_relea','relea','_died'),'', $item);
+		$item = ucfirst(strtolower($item));
+		$item = trim($item);
+
+		if (strlen($item) <= 2) {
+			$item = '';
 		}
 	}
 

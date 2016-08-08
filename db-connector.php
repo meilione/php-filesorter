@@ -40,6 +40,10 @@ class DBConnector {
 		return $out;
 	}
 
+	public function exec($sql) {
+		$this->db->exec($sql);
+	}
+
 
 	public function __destruct() {
 
