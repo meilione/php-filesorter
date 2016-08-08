@@ -9,6 +9,7 @@ header('Content-type: text/plain');
 
 include_once('knowntags.php');
 
+set_time_limit(720);
 
 class SortFiles {
 	
@@ -18,6 +19,8 @@ class SortFiles {
 	private $settings = array();
 
 	private $known_tags = null;
+
+	private $metadata = array();
 
 	public $debug = false;
 
@@ -39,6 +42,7 @@ class SortFiles {
 		$this->known_tags->findOrangUtanNames($this->file_list_path);
 		$this->read_file_list();
 		$this->process_file_list();
+		$this->build_folder_structure();
 	}
 
 
@@ -69,8 +73,6 @@ class SortFiles {
 		if (empty($this->file_list)) {
 			return 'File list empty';
 		}
-
-		$metadata = array();
 
 		foreach ($this->file_list as $file_path) {
 			$file_path = $this->clean_string($file_path);
@@ -137,15 +139,41 @@ class SortFiles {
 
 			}
 
-			$metadata[] = array(
+			$this->metadata[] = array(
 								'filepath' => $file_path,
 								'keywords' => $keywords
 								);
 
 		}
 
-		print_r($metadata);
+		print_r($this->metadata);
 
+	}
+
+
+	private function build_folder_structure() {
+		if (empty($this->metadata)) {
+			return false;
+		}
+
+		foreach ($this->metadata as $meta) {
+			$new_file_path = $this->compile_path_from_keywords($meta['keywords']);
+			$meta['destination'] = $new_file_path;
+		}
+
+		print_r($this->metadata);
+
+	}
+
+
+	private function compile_path_from_keywords($keywords) {
+		if (empty($keywords)) {
+			return false;
+		}
+
+
+
+		return $path;
 	}
 
 
@@ -173,9 +201,9 @@ $options = array(
 				"ignorePath"    => "S:\\shared_files_internal_network_(save_here)\\_Internal_Files\\Multimedia\\Digital Asset Management\\Imported unsorted\\"
 			),
 		"debug" => array(
-				"limitListAt" => 2000,
+				"limitListAt" => 13738,
 				"limitListTo" => 1,
-				"limitListRandom" => 0,
+				"limitListRandom" => 10000,
 			)
 	);
 
@@ -187,3 +215,4 @@ $file_list_path = '/home/yvesmeili/Sites/zivi/razuna-api/sandbox/filesorter/file
 $SORT->set_file_list_path($file_list_path);
 
 $SORT->start();
+

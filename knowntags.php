@@ -176,7 +176,7 @@ class KnownTags {
 
 		$query = "SELECT * FROM objects WHERE ". $where . $type . $onlyMain;
 
-		//echo $query;
+		//echo $query."\n";
 
 		$result = $this->db->query($query);
 
@@ -238,13 +238,13 @@ class KnownTags {
 		$matches = array_unique($matches[2]);
 		array_walk($matches, array($this, 'cleanUpOrangutanNames'));
 		$matches = array_unique($matches);
-		print_r($matches);
+		//print_r($matches);
 
 		//Insert Into DB
 		$values = implode("',0,5),('",$matches);
 		$values = substr($values, 7);
 		$sql = "INSERT INTO objects (object, parent, type) VALUES $values',0,5)";
-		echo $sql;
+		//echo $sql;
 		$this->db->exec($sql);
 
 	}
