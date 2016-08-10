@@ -43,6 +43,9 @@ class SortFiles {
 		$this->read_file_list();
 		$this->process_file_list();
 		$this->build_folder_structure();
+		if ($this->debug) {
+			$this->debug_output();
+		}
 	}
 
 
@@ -146,7 +149,7 @@ class SortFiles {
 
 		}
 
-		print_r($this->metadata);
+		//print_r($this->metadata);
 
 	}
 
@@ -156,12 +159,13 @@ class SortFiles {
 			return false;
 		}
 
-		foreach ($this->metadata as $meta) {
-			$new_file_path = $this->compile_path_from_keywords($meta['keywords']);
-			$meta['destination'] = $new_file_path;
+		foreach ($this->metadata as $key => $meta) {
+			$filename = basename(str_replace('\\','/',$meta['filepath']));
+			$new_file_path = $this->compile_path_from_keywords($meta['keywords']) . $filename;
+			$this->metadata[$key]['destination'] = $new_file_path;
 		}
 
-		print_r($this->metadata);
+		//print_r($this->metadata);
 
 	}
 
@@ -171,7 +175,87 @@ class SortFiles {
 			return false;
 		}
 
+		$path_raw_items = array();
+		$keyword_types  = $this->known_tags->object_types;
+		$path_structure = 'Location/Event/Orangutan/Medium-Type/Year/Month';
 
+		$path = '';
+
+		//path
+		foreach ($keywords as $keyword) {
+			switch ($keyword['status']) {
+				case 'multiple-all':
+				case 'multiple-parts':
+					foreach ($keyword['multiple'] as $parts) {
+						if (in_array($parts['type'],$keyword_types)) {
+							if (isset($path_raw_items[$parts['type']])) {
+								if (!in_array($parts['object'],$path_raw_items[$parts['type']])) {
+									$path_raw_items[$parts['type']][] = $parts['object'];
+								}
+							} else {
+								$path_raw_items[$parts['type']] = array($parts['object']);
+							}
+						}
+					}
+					break;
+				case 'exact':
+				case 'like':
+					if (in_array($keyword['type'],$keyword_types)) {
+						if (isset($path_raw_items[$keyword['type']]) && !in_array($keyword['keyword'],$path_raw_items[$keyword['type']])) {
+							$path_raw_items[$keyword['type']][] = $keyword['keyword'];
+						} else {
+							$path_raw_items[$keyword['type']] = array($keyword['keyword']);
+						}
+					}
+					break;
+				case 'nomatch':
+					if (isset($path_raw_items['nomatch'])) {
+						$path_raw_items['nomatch'][] = $keyword['part'];
+					} else {
+						$path_raw_items['nomatch'] = array($keyword['part']);
+					}
+					break;
+			}
+		}
+
+		$path_structure = explode('/',$path_structure);
+		$used_parts = 0;
+		$categorized = false;
+		foreach ($path_structure as $part) {
+			$placed = false;
+			if (isset($path_raw_items[$part]) && !empty($path_raw_items[$part])) {
+				if (count($path_raw_items[$part]) == 1) {
+					$path .= $path_raw_items[$part][0].'/';
+					$placed = true;
+				} else {
+					//TODO how to deal with multiple occurances
+					//deal with "orangutan" and <name of orangutan> occuring
+					if (count($path_raw_items[$part]) == 2 && in_array('Orangutan',$path_raw_items[$part])) {
+						foreach ($path_raw_items[$part] as $tmp_part) {
+							if ($tmp_part != 'Orangutan') {
+								$path .= $tmp_part.'/';
+								$placed = true;
+							}
+						}
+					}
+				}
+			} else if ($part == 'Location' && isset($path_raw_items['Organisation'])) {
+				if (count($path_raw_items['Organisation']) == 1) {
+					$path .= $path_raw_items['Organisation'][0].'/';
+					$placed = true;
+				}
+			}
+			if ($placed) {
+				$used_parts++;
+				if (in_array($part, array('Month','Orangutan'))) {
+					$categorized = true;
+				}
+			}
+		}
+
+		if ($used_parts < count($path_structure) && !$categorized) {
+			$path .= 'uncategorized/';
+		}
 
 		return $path;
 	}
@@ -192,6 +276,65 @@ class SortFiles {
 	}
 
 
+	private function debug_output() {
+		$new_files = array();
+
+		header('Content-type: text/html');
+		echo '<table>'."\n";
+		foreach ($this->metadata as $meta) {
+			echo '<tr>'."\n";
+			echo '	<td style="padding-right: 20px;">'.$meta['filepath'].'</td>'."\n";
+			echo '	<td>'.$meta['destination'].'</td>'."\n";
+			echo '</tr>'."\n";
+
+			$new_files[] = $meta['destination'];
+		}
+		echo '</table>'."\n";
+
+		echo '<pre>';	
+		//tree structure
+		$new_files_tree = $this->file_paths_to_tree($new_files);
+		print_r($new_files_tree);
+		echo '</pre>';
+
+	}
+
+	//http://stackoverflow.com/questions/12295458/make-treeview-in-php
+	private function file_paths_to_tree($files) {
+		$newFiles = array();
+		foreach($files as $file){
+		    $one = explode('/', $file);       // explode '/' to get each value
+		    $last = array_pop($one);          // pop the last item because it is the file
+		    $rev = array_reverse($one);       // we reverse the array in order to append the last to previous
+		    $mixArray = array();              // create a temporary array
+
+		    //print_r($rev);
+
+		    foreach($rev as $num => $dir){    // loop in reversed array to extract directories
+
+		    	if (is_numeric($dir)) {
+		    		$dir = $dir . 'k';
+		    	}
+
+		        $mixArray[$dir] = $last;      // append the last item to the current dir, the first loop puts the file to the last directory
+		        $last = $mixArray;            // overwrite last variable with current created array
+
+		        //print_r($mixArray);
+
+		        if($num < count($rev)-1){ 
+		            unset($mixArray);         // if the current directory is not the last in reversed array we unset it because we will have duplicates
+		        }
+		    }
+
+		    $newFiles = array_merge_recursive($newFiles, $mixArray); // merge recursive the result to main array
+		    //$newFiles = $newFiles + $mixArray; // merge recursive the result to main array
+
+		}
+
+		return $newFiles;
+	}
+
+
 }
 
 
@@ -201,9 +344,9 @@ $options = array(
 				"ignorePath"    => "S:\\shared_files_internal_network_(save_here)\\_Internal_Files\\Multimedia\\Digital Asset Management\\Imported unsorted\\"
 			),
 		"debug" => array(
-				"limitListAt" => 13738,
+				"limitListAt" => 32600,
 				"limitListTo" => 1,
-				"limitListRandom" => 10000,
+				"limitListRandom" => 1000,
 			)
 	);
 

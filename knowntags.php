@@ -93,9 +93,6 @@ class KnownTags {
 			if (strpos($text, ' ') !== false) {
 				$string_parts = explode(' ', $text);
 
-				//echo 'String parts'."\n";
-				//print_r($string_parts);
-
 				foreach ($string_parts as $part) {
 					if (strlen($part) < $this->min_string_part_length) {
 						continue;
@@ -107,11 +104,11 @@ class KnownTags {
 								"ID" => 0,
 					            "object" => $part,
 					            "parent" => 0,
-					            "type" => 6,
+					            "type" => 8,
 					            "score" => 100
 							);
 					} else {
-						$part_result = $this->getObject($part, '', false, true, true, true);
+						$part_result = $this->getObject($part, '', false, true, true, 'lazy');
 						foreach ($part_result as $res_row) {
 							$res_row['score'] = 100;
 							$matches[] = $res_row;
@@ -155,7 +152,10 @@ class KnownTags {
 	}
 
 
-	private function getObject($search, $type = '', $onlyMain = false, $outputParent = false, $exact = false, $stemmed = true) {
+	private function getObject($keyword, $_type = '', $onlyMain = false, $outputParent = false, $exact = false, $stemmed = true) {
+		$search = $keyword;
+		$type = $_type;
+
 		if (empty($type)) {
 			$type = '';
 		} else {
@@ -181,7 +181,11 @@ class KnownTags {
 		$result = $this->db->query($query);
 
 		if (empty($result)) {
-			return array();
+			if ($stemmed === 'lazy') {
+				return $this->getObject($keyword, $_type, $onlyMain, $outputParent, $exact, false);
+			} else {
+				return array();
+			}
 		} else if ($outputParent) {
 			return $this->mergeParentObjects($result);
 		}
