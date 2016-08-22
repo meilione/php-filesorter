@@ -19,6 +19,7 @@ class SortFiles {
 
 	private $min_length_nomatch = 4;
 	private $min_count_to_addkeyword = 10;
+	private $max_depth_still_add_nomatch = 3;
 
 	private $start_time = 0;
 
@@ -189,7 +190,7 @@ class SortFiles {
 		//generate file path
 		foreach ($this->metadata as $key => $meta) {
 			$filename = basename(str_replace('\\','/',$meta['filepath']));
-			$file_path_info = $this->compile_path_from_keywords($meta['keywords']);
+			$file_path_info = $this->compile_path_from_keywords($meta['filepath'],$meta['keywords']);
 			$destionation_path = $file_path_info[0] . $filename;
 			$this->metadata[$key]['destination'] = $destionation_path;
 			$this->metadata[$key]['keywords']    = $file_path_info[1];
@@ -207,7 +208,7 @@ class SortFiles {
 	}
 
 
-	private function compile_path_from_keywords($keywords) {
+	private function compile_path_from_keywords($src, $keywords) {
 		if (empty($keywords)) {
 			return false;
 		}
@@ -266,11 +267,15 @@ class SortFiles {
 			}
 		}
 
+		//trying to get exif date if not already set from the file path
+		//print_r($path_raw_items);
+		$this->filter_exif_date_extract_add($src,$path_raw_items);
 		//print_r($path_raw_items);
 		
 		$path_structure = explode('/',$path_structure);
-		$used_parts = 0;
-		$categorized = false;
+		$used_parts = array();
+		//$categorized = false;
+		$first_match_type = '';
 		foreach ($path_structure as $part) {
 			$placed = false;
 			if (isset($path_raw_items[$part]) && !empty($path_raw_items[$part])) {
@@ -296,23 +301,91 @@ class SortFiles {
 				}
 			}
 			if ($placed) {
-				$used_parts++;
-				if (in_array($part, array('Month','Orangutan'))) {
+				$used_parts[] = $part;
+				/*if (in_array($part, array('Month','Orangutan'))) {
 					$categorized = true;
-				}
+				}*/
 			}
 		}
 
-		if ($used_parts < count($path_structure) && !$categorized) {
+		//if not all parts have been used
+		$parts_used_count = count($used_parts);
+		if ($parts_used_count < count($path_structure && $parts_used_count < $this->max_depth_still_add_nomatch)/* && !$categorized*/) {
 			if (isset($path_raw_items['nomatch'])) {
 				$path .= ucfirst($path_raw_items['nomatch'][0]) . '/';
-			} else {
+				$used_parts[] = 'nomatch';
+			} /*else {
+				$path .= 'uncategorized/';
+			}*/
+		}
+
+
+		$sorted_by_date = false;
+
+		if (isset($used_parts[0])) {
+
+			//if first month and year
+			if ($parts_used_count == 2 && $used_parts[0] == 'Year' && $used_parts[1] == 'Month') {
+				$path = 'Date/' . $path;
+				$sorted_by_date = true;
+			}
+
+			//if first year
+			if ($used_parts[0] == 'Year' && !$sorted_by_date) {
+				$path = 'Date/' . $path;
+				$sorted_by_date = true;
+			}
+
+			//if first month
+			if ($used_parts[0] == 'Month' && !$sorted_by_date) {
+				$path = 'Date/Year-Unknown/' . $path;
+				$sorted_by_date = true;
+			}
+
+			if (!$sorted_by_date) {
+				foreach ($path_structure as $part) {
+					if ($used_parts[0] == $part) {
+						$path = $part . '/' . $path;
+					}
+				}
+			}
+
+			//if by nomatch tag
+			if ($used_parts[0] == 'nomatch') {
+				$path = 'Tag/' . $path;
+			}
+
+			//group in uncategrized if only two levels exist
+			if (!in_array('Orangutan',$used_parts) && !in_array('Month',$used_parts) && !in_array('Year',$used_parts) && $parts_used_count > 1 && $parts_used_count < 4) {
 				$path .= 'uncategorized/';
 			}
+
 		}
 		
 		//echo $path."\n";
 		return array($path,$path_raw_items);
+	}
+
+
+	private function filter_exif_date_extract_add($file, &$keywords) {
+		if (!isset($keywords['Year']) || !isset($keywords['Month'])) {
+			$exif = @exif_read_data($file);
+			if (!empty($exif) && isset($exif['DateTimeOriginal'])) {
+				//TODO extract date time 
+				$date  = DateTime::createFromFormat('Y:m:d h:i:s', $exif['DateTimeOriginal']); //YYYY:MM:DD (HH:MM:SS)
+				if ($date === false) {
+					return false;
+				}
+				$month = $date->format('F');
+				$year  = $date->format('Y');
+				if (!isset($keywords['Year'])) {
+					$keywords['Year'] = array( $year );
+				}
+				if (!isset($keywords['Month'])) {
+					$keywords['Month'] = array( $month );
+				}
+			}
+		}
 	}
 
 
@@ -331,8 +404,6 @@ class SortFiles {
 
 
 	private function debug_output() {
-		return; //TODO remove if requires proper debugging output
-
 		$new_files = array();
 
 		//header('Content-type: text/html');
@@ -357,6 +428,7 @@ class SortFiles {
 
 
 		echo 'No Matches' . "\n";
+		asort($this->nomatches);
 		print_r($this->nomatches);
 
 		//echo '</pre>';
@@ -409,7 +481,7 @@ class SortFiles {
 		$delimiter = $this->settings['output']['delimiter'];
 
 		if ($format == 'json') {
-			echo "preparing json\n";
+			//echo "preparing json\n";
 			$data = '[';
 			$first = true;
 			foreach ($this->metadata as $obj) {

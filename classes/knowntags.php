@@ -128,7 +128,7 @@ class KnownTags {
 				$result = $matches;
 			}
 			
-		} 
+		}
 
 		/*
 		* Clean up
@@ -236,7 +236,12 @@ class KnownTags {
 
 	public function findOrangUtanNames($file_list_path) {
 		$file_path_string = file_get_contents($file_list_path);
-		preg_match_all('/ou ([0-9]{0,3}) (.*?)[\\\s]/mi', $file_path_string, $matches);
+		$match_count = preg_match_all('/ou ([0-9]{0,3}) (.*?)[\\\s]/mi', $file_path_string, $matches);
+		
+		if (empty($match_count)) {
+			return false;
+		}
+
 		$matches = array_unique($matches[2]);
 		array_walk($matches, array($this, 'cleanUpOrangutanNames'));
 		$matches = array_unique($matches);

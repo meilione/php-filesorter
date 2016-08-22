@@ -88,8 +88,9 @@ if (isset($args['h'])) {
 	Usage: 
 		--filelistpath 		Path to file with the file list
 		--outputfile		Path where to save the output
-		--ignorePath 		String with a path part to ignore>    for example /home/user/somefolder/
+		--ignorepath 		String with a path part to ignore>    for example /home/user/somefolder/
 		--pathsep			Input file path delimiter / or \\
+		--tagallfileparts	Add all filepath parts to nomatches
 
 
 ';
@@ -113,13 +114,17 @@ if ($error !== true) {
 
 //ignorePath processing
 $ignorePath = isset($args['ignorepath']) && !empty($args['ignorepath']) ? $args['ignorepath'] : '';
-$pathsep = isset($args['pathsep']) && !empty($args['pathsep']) ? $args['pathsep'] : '\\';
-$delimiter = isset($args['delimiter']) && !empty($args['delimiter']) ? $args['delimiter'] : '';
+$pathsep    = isset($args['pathsep']) && !empty($args['pathsep']) ? $args['pathsep'] : '/';
+$delimiter  = isset($args['delimiter']) && !empty($args['delimiter']) ? $args['delimiter'] : '';
+$tagallfileparts  = isset($args['tagallfileparts']) ? true : false;
+
+//echo 'using delimiter: ' . $pathsep;
 
 $options = array(
 		"string" => array(
 				"pathsep" => $pathsep,
-				"ignorePath"    => $ignorePath
+				"ignorePath"    => $ignorePath,
+				'tagallfileparts' => $tagallfileparts
 			),
 		"output" => array(
 				"file" => $args['outputfile'],
@@ -129,7 +134,7 @@ $options = array(
 		"debug" => array(
 				"limitListAt" => 0,
 				"limitListTo" => 0,
-				"limitListRandom" => 100000,
+				"limitListRandom" => 1000000,
 			)
 	);
 
