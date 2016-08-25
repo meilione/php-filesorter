@@ -49,7 +49,7 @@
 header('Content-type: application/json');
 
 
-define('LPS_BASEPATH', '/home/yvesmeili/Sites/zivi/local-photo-station/php-filesorter/');
+define('LPS_BASEPATH', dirname(__FILE__).'/');
 
 include_once(LPS_BASEPATH.'classes/helper.php');
 include_once(LPS_BASEPATH.'classes/sort-files.php');
