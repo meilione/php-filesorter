@@ -215,7 +215,7 @@ class SortFiles {
 
 		$path_raw_items = array();
 		$keyword_types  = $this->known_tags->object_types;
-		$path_structure = 'Location/Event/Orangutan/Medium-Type/Year/Month';
+		$path_structure = 'Location/Space/Event/Orangutan/Animal/Medium-Type/Year/Month';
 
 		$path = '';
 
@@ -274,24 +274,19 @@ class SortFiles {
 		
 		$path_structure = explode('/',$path_structure);
 		$used_parts = array();
-		//$categorized = false;
 		$first_match_type = '';
 		foreach ($path_structure as $part) {
 			$placed = false;
 			if (isset($path_raw_items[$part]) && !empty($path_raw_items[$part])) {
 				if (count($path_raw_items[$part]) == 1) {
-					$path .= $path_raw_items[$part][0].'/';
+					$orangutan_folder = $part === 'Orangutan' ? 'Orangutan/' : '';
+					$path .= $orangutan_folder . $path_raw_items[$part][0].'/';
 					$placed = true;
-				} else {
-					//TODO how to deal with multiple occurances
-					//deal with "orangutan" and <name of orangutan> occuring
-					if (count($path_raw_items[$part]) == 2 && in_array('Orangutan',$path_raw_items[$part])) {
-						foreach ($path_raw_items[$part] as $tmp_part) {
-							if ($tmp_part != 'Orangutan') {
-								$path .= $tmp_part.'/';
-								$placed = true;
-							}
-						}
+				} else if ($part !== 'Location') {
+					foreach ($path_raw_items[$part] as $tmp_folder_part) {
+						$orangutan_folder = $part === 'Orangutan' ? 'Orangutan/' : '';
+						$path  .= $orangutan_folder . $tmp_folder_part . '/';
+						$placed = true;
 					}
 				}
 			} else if ($part == 'Location' && isset($path_raw_items['Organisation'])) {
@@ -302,9 +297,6 @@ class SortFiles {
 			}
 			if ($placed) {
 				$used_parts[] = $part;
-				/*if (in_array($part, array('Month','Orangutan'))) {
-					$categorized = true;
-				}*/
 			}
 		}
 
@@ -342,7 +334,7 @@ class SortFiles {
 				$sorted_by_date = true;
 			}
 
-			if (!$sorted_by_date) {
+			if (!$sorted_by_date && $used_parts[0] !== 'Orangutan') {
 				foreach ($path_structure as $part) {
 					if ($used_parts[0] == $part) {
 						$path = $part . '/' . $path;
@@ -356,7 +348,7 @@ class SortFiles {
 			}
 
 			//group in uncategrized if only two levels exist
-			if (!in_array('Orangutan',$used_parts) && !in_array('Month',$used_parts) && !in_array('Year',$used_parts) && $parts_used_count > 1 && $parts_used_count < 4) {
+			if (!in_array('Orangutan',$used_parts) && !in_array('Month',$used_parts) && !in_array('Year',$used_parts) && $parts_used_count >= 1 && $parts_used_count < 4) {
 				$path .= 'uncategorized/';
 			}
 
@@ -426,10 +418,12 @@ class SortFiles {
 		$new_files_tree = $this->file_paths_to_tree($new_files);
 		print_r($new_files_tree);
 
+		$output_tree = serialize($new_files_tree);
+		file_put_contents('/home/yvesmeili/Sites/zivi/local-photo-station/sandbox/folderview/tree.txt', $output_tree);
 
-		echo 'No Matches' . "\n";
-		asort($this->nomatches);
-		print_r($this->nomatches);
+		//echo 'No Matches' . "\n";
+		//asort($this->nomatches);
+		//print_r($this->nomatches);
 
 		//echo '</pre>';
 

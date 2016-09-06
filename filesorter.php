@@ -134,7 +134,7 @@ $options = array(
 		"debug" => array(
 				"limitListAt" => 0,
 				"limitListTo" => 0,
-				"limitListRandom" => 1000000,
+				"limitListRandom" => 100000,
 			)
 	);
 
